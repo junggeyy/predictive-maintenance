@@ -1,0 +1,3 @@
+https://drive.google.com/drive/folders/18E3cOeuDJCxlE25XiR9HM2V8I7tKJkpF?usp=sharing
+
+The master, test, val and train datasets can be found on the drive link above.
