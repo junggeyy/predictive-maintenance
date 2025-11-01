@@ -1,0 +1,45 @@
+{
+  "total_columns": 29,
+  "identifier_columns": [
+    "machineID",
+    "datetime"
+  ],
+  "sensor_columns": [
+    "volt",
+    "rotate",
+    "pressure",
+    "vibration"
+  ],
+  "machine_columns": [
+    "model",
+    "age"
+  ],
+  "error_columns": [
+    "error1",
+    "error2",
+    "error3",
+    "error4",
+    "error5"
+  ],
+  "maintenance_columns": [
+    "maint_comp1",
+    "maint_comp2",
+    "maint_comp3",
+    "maint_comp4"
+  ],
+  "failure_columns": [
+    "failure_comp1",
+    "failure_comp2",
+    "failure_comp3",
+    "failure_comp4"
+  ],
+  "target_columns": [
+    "RUL",
+    "RUL_comp1",
+    "RUL_comp2",
+    "RUL_comp3",
+    "RUL_comp4"
+  ],
+  "target_type": "regression",
+  "max_rul_hours": 720
+}
