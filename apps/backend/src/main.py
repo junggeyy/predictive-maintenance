@@ -6,10 +6,13 @@ from src.routers.routers import router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # loading the model on startup & store it for future uses
+    """
+    Initializes and pre-loads all models and scalers into memory upon application startup.
+    """
     get_classification_model()
     get_regression_model()
-    print("All models loaded")
+
+    print("All models loaded successfully!")
     yield
 
 app = FastAPI(
