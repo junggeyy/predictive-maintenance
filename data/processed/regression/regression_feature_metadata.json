@@ -112,6 +112,6 @@
     "pressure_deviation_from_machine_avg",
     "vibration_deviation_from_machine_avg"
   ],
-  "target_column": "RUL",
+  "target_column": "RUL_hours",
   "target_type": "regression"
 }

@@ -1,5 +1,5 @@
 {
-  "total_columns": 29,
+  "total_columns": 25,
   "identifier_columns": [
     "machineID",
     "datetime"
@@ -34,12 +34,8 @@
     "failure_comp4"
   ],
   "target_columns": [
-    "RUL",
-    "RUL_comp1",
-    "RUL_comp2",
-    "RUL_comp3",
-    "RUL_comp4"
+    "RUL_hours"
   ],
   "target_type": "regression",
-  "max_rul_hours": 720
+  "max_rul_hours": 24
 }
