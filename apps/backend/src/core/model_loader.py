@@ -13,7 +13,7 @@ _regression_scaler = None
 
 def get_classification_model():
     """
-    Lazily loads and returns the classification model and its corresponding scaler.
+    Lazy loads and returns the classification model and its corresponding scaler.
     Ensures both model & scaler are only loaded once at startup, and reuses exisiting instances.
     """
     global _classification_model, _classification_scaler
@@ -24,7 +24,6 @@ def get_classification_model():
         print(f"Classification model loaded.")
 
     if _classification_scaler is None:
-        print("Classification scaler being loaded.")
         model_path = os.path.join(MODEL_DIR, "classification_scaler.pkl")
         _classification_scaler = joblib.load(model_path)
         print(f"Classification scaler loaded.")
@@ -32,4 +31,21 @@ def get_classification_model():
     return _classification_model, _classification_scaler
 
 def get_regression_model():
-    pass
+    """
+    Lazy loads and returns the regression model and its corresponding scaler.
+    Ensures both model & scaler are only loaded once at startup, and reuses exisiting instances.
+    """
+    global _regression_model, _regression_scaler
+
+    if _regression_model is None:
+        model_path = os.path.join(MODEL_DIR, "regression_model.pkl")
+        _regression_model = joblib.load(model_path)
+        print(f"Regression model loaded.")
+
+    if _regression_scaler is None:
+        model_path = os.path.join(MODEL_DIR, "regression_scaler.pkl")
+        _regression_scaler = joblib.load(model_path)
+        print(f"Regression scaler loaded.")
+        
+    return _regression_model, _regression_scaler
+
