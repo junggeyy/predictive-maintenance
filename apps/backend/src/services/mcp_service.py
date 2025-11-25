@@ -3,10 +3,18 @@ class MCPService:
         self.logs = []
 
     def create_alert(self, machine_id, failure_prob):
-        pass
+         self.logs.append({
+            "type": "alert",
+            "machine_id": machine_id,
+            "probability": failure_prob
+        })
     
     def create_work_order(self, machine_id, rul_hours):
-        pass
+         self.logs.append({
+            "type": "work_order",
+            "machine_id": machine_id,
+            "rul_hours": rul_hours
+        })
     
     def log_event(self, message: str):
         """

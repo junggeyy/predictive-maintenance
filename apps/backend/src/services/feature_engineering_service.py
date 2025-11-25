@@ -4,14 +4,9 @@ import numpy as np
 class FeatureEngineeringService:
    
     def extract_features(self, df):
-      
         df = df.copy()
-        
-        # Ensure datetime is parsed
-        if 'datetime' in df.columns and not pd.api.types.is_datetime64_any_dtype(df['datetime']):
-            df['datetime'] = pd.to_datetime(df['datetime'])
-        
-        # Sort by machineID and datetime (required for rolling/lag features)
+
+        # Sort by machineID and datetime
         df = df.sort_values(['machineID', 'datetime']).reset_index(drop=True)
         
         print("Creating features...")
@@ -28,7 +23,7 @@ class FeatureEngineeringService:
         # 4. Machine-specific Features (8 features)
         df = self._create_machine_features(df)
         
-        print(f"✓ Feature engineering complete! Added 43 features.")
+        print(f"Feature engineering complete.")
         
         return df
     
@@ -57,7 +52,6 @@ class FeatureEngineeringService:
         std_columns = [col for col in df.columns if '_std' in col and 'rolling' in col]
         df[std_columns] = df[std_columns].fillna(0)
         
-        print("  Rolling features (16)")
         return df
     
     def _create_lag_features(self, df):
@@ -79,7 +73,6 @@ class FeatureEngineeringService:
         lag_columns = [col for col in df.columns if '_lag_' in col or '_change_' in col]
         df[lag_columns] = df[lag_columns].fillna(0)
         
-        print("   Lag features (12)")
         return df
     
     def _create_event_features(self, df):
@@ -150,15 +143,35 @@ class FeatureEngineeringService:
         df['total_maintenances_to_date'] = df.groupby('machineID')['has_maintenance'].cumsum()
         df['total_failures_to_date'] = df.groupby('machineID')['has_failure'].cumsum()
         
-        print("  ✓ Event features (7)")
         return df
     
     def _create_machine_features(self, df):
         """Creates 8 machine-specific features"""
-        
-        # One-hot encode machine models
-        dummies_model = pd.get_dummies(df['model'], drop_first=True)
-        df = pd.concat([df, dummies_model], axis=1)
+
+        # One-hot encoding models
+
+        # extracting numeric model identifier
+        df['model_num'] = df['model'].str.extract(r'(\d+)').astype(int)
+        model_dummies = pd.get_dummies(df['model_num'], prefix='model')
+
+        rename_map = {
+            'model_2': 'model2',
+            'model_3': 'model3',
+            'model_4': 'model4',
+        }
+        # renaming to match the ML model's feature name
+        model_dummies.rename(columns=rename_map, inplace=True) 
+
+        for col in ['model2', 'model3', 'model4']:
+            if col not in model_dummies.columns:
+                model_dummies[col] = 0
+
+        # Only keep needed columns in this exact order
+        model_dummies = model_dummies[['model2', 'model3', 'model4']]
+        df = pd.concat([df, model_dummies], axis=1)
+
+        # Remove original model info
+        df.drop(columns=['model', 'model_num'], inplace=True)
         
         # Age squared
         df['age_squared'] = df['age'] ** 2
@@ -170,7 +183,6 @@ class FeatureEngineeringService:
             feature_name = f'{sensor}_deviation_from_machine_avg'
             df[feature_name] = df[sensor] - machine_avg
         
-        print("   Machine features (8)")
         return df
 
 feature_engineering_service = FeatureEngineeringService()
