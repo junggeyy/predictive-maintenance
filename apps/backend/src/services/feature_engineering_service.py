@@ -1,30 +1,176 @@
-from src.schemas.request_schema import SensorData
+import pandas as pd
+import numpy as np
 
 class FeatureEngineeringService:
-    """
-    Service class for feature engineering
-    """
-    def _get_features(self, sensor_data: SensorData):
-        """
-        Temporary class for feature creation simulation.
-        """
-        volt = sensor_data['volt']  # 0.126322196
-        rotate = sensor_data['rotate'] # -1.66442733
-        pressure = sensor_data['pressure'] # -0.3250084191
-        vibration = sensor_data['vibration'] # -1.144192998
-        age = sensor_data['age'] # 0.4581633938
+   
+    def extract_features(self, df):
+      
+        df = df.copy()
         
-        {"volt":volt,"rotate":rotate,"pressure":pressure,"vibration":vibration,"age":age,
-         "error1":-0.0343470023,"error2":-0.0336187405,"error3":-0.0311350082,"error4":-0.0285806449,"error5":-0.0206257354,"maint_comp1":-0.0282177945,"maint_comp2":-0.0295730269,"maint_comp3":-0.0282421291,"maint_comp4":-0.0285565978,"has_maintenance":-0.0495992318,"has_failure":-0.0288200154,"volt_rolling_6h_mean":0.1683755111,"volt_rolling_6h_std":2.119008697,"volt_rolling_24h_mean":0.6188846436,"volt_rolling_24h_std":1.111677369,"rotate_rolling_6h_mean":-2.519499127,"rotate_rolling_6h_std":1.209279297,"rotate_rolling_24h_mean":-4.625549762,"rotate_rolling_24h_std":1.032672337,"pressure_rolling_6h_mean":0.2269541309,"pressure_rolling_6h_std":-1.001590979,"pressure_rolling_24h_mean":0.2910486444,"pressure_rolling_24h_std":0.1893806003,"vibration_rolling_6h_mean":-0.3043916696,"vibration_rolling_6h_std":-1.171288584,"vibration_rolling_24h_mean":-0.6695767984,"vibration_rolling_24h_std":-1.116335253,"volt_lag_1h":1.829425924,"volt_lag_3h":2.004322186,"volt_change_1h":-1.254352745,"rotate_lag_1h":-2.043133163,"rotate_lag_3h":-0.6016700813,"rotate_change_1h":0.2892745898,"pressure_lag_1h":0.3940953652,"pressure_lag_3h":-0.5783744898,"pressure_change_1h":-0.5600455436,"vibration_lag_1h":0.3775849049,"vibration_lag_3h":-0.1904805704,"vibration_change_1h":-1.154363258,"error_count_last_24_h":2.85105063,"hours_since_last_error":-0.9101899604,"hours_since_last_maintenance":0.4282813345,"days_since_last_failure":-0.431880157,"total_errors_to_date":2.79730675,"total_maintenances_to_date":1.704669696,"total_failures_to_date":1.09917074,"model2":-0.4525696379,"model3":-0.7337993857,"model4":1.457737974,"age_squared":0.2644651639,"volt_deviation_from_machine_avg":0.1363677766,"rotate_deviation_from_machine_avg":-1.657856613,"pressure_deviation_from_machine_avg":-0.3042737074,"vibration_deviation_from_machine_avg":-1.162631222}
-
-
-    def extract_features(self, df): # will now take the dataset/dataframe for parameters
-        """
-        Returns: engineered dataframe with all 43 features
-        """
-
-        return {"volt":0.126322196,"rotate":-1.66442733,"pressure":-0.3250084191,"vibration":-1.144192998,"age":0.4581633938,
-         "error1":-0.0343470023,"error2":-0.0336187405,"error3":-0.0311350082,"error4":-0.0285806449,"error5":-0.0206257354,"maint_comp1":-0.0282177945,"maint_comp2":-0.0295730269,"maint_comp3":-0.0282421291,"maint_comp4":-0.0285565978,"has_maintenance":-0.0495992318,"has_failure":-0.0288200154,"volt_rolling_6h_mean":0.1683755111,"volt_rolling_6h_std":2.119008697,"volt_rolling_24h_mean":0.6188846436,"volt_rolling_24h_std":1.111677369,"rotate_rolling_6h_mean":-2.519499127,"rotate_rolling_6h_std":1.209279297,"rotate_rolling_24h_mean":-4.625549762,"rotate_rolling_24h_std":1.032672337,"pressure_rolling_6h_mean":0.2269541309,"pressure_rolling_6h_std":-1.001590979,"pressure_rolling_24h_mean":0.2910486444,"pressure_rolling_24h_std":0.1893806003,"vibration_rolling_6h_mean":-0.3043916696,"vibration_rolling_6h_std":-1.171288584,"vibration_rolling_24h_mean":-0.6695767984,"vibration_rolling_24h_std":-1.116335253,"volt_lag_1h":1.829425924,"volt_lag_3h":2.004322186,"volt_change_1h":-1.254352745,"rotate_lag_1h":-2.043133163,"rotate_lag_3h":-0.6016700813,"rotate_change_1h":0.2892745898,"pressure_lag_1h":0.3940953652,"pressure_lag_3h":-0.5783744898,"pressure_change_1h":-0.5600455436,"vibration_lag_1h":0.3775849049,"vibration_lag_3h":-0.1904805704,"vibration_change_1h":-1.154363258,"error_count_last_24_h":2.85105063,"hours_since_last_error":-0.9101899604,"hours_since_last_maintenance":0.4282813345,"days_since_last_failure":-0.431880157,"total_errors_to_date":2.79730675,"total_maintenances_to_date":1.704669696,"total_failures_to_date":1.09917074,"model2":-0.4525696379,"model3":-0.7337993857,"model4":1.457737974,"age_squared":0.2644651639,"volt_deviation_from_machine_avg":0.1363677766,"rotate_deviation_from_machine_avg":-1.657856613,"pressure_deviation_from_machine_avg":-0.3042737074,"vibration_deviation_from_machine_avg":-1.162631222}
+        # Ensure datetime is parsed
+        if 'datetime' in df.columns and not pd.api.types.is_datetime64_any_dtype(df['datetime']):
+            df['datetime'] = pd.to_datetime(df['datetime'])
         
+        # Sort by machineID and datetime (required for rolling/lag features)
+        df = df.sort_values(['machineID', 'datetime']).reset_index(drop=True)
+        
+        print("Creating features...")
+        
+        # 1. Rolling Window Features (16 features)
+        df = self._create_rolling_features(df)
+        
+        # 2. Lag Features (12 features)
+        df = self._create_lag_features(df)
+        
+        # 3. Event History Features (7 features)
+        df = self._create_event_features(df)
+        
+        # 4. Machine-specific Features (8 features)
+        df = self._create_machine_features(df)
+        
+        print(f"✓ Feature engineering complete! Added 43 features.")
+        
+        return df
+    
+    def _create_rolling_features(self, df):
+        """Creates 16 rolling window features (6h & 24h mean/std for 4 sensors)"""
+        sensors = ['volt', 'rotate', 'pressure', 'vibration']
+        windows = [6, 24]
+        stats = ['mean', 'std']
+        
+        for sensor in sensors:
+            for window in windows:
+                roll = df.groupby('machineID')[sensor].rolling(
+                    window=window,
+                    min_periods=1
+                )
+                
+                for stat in stats:
+                    feature_name = f'{sensor}_rolling_{window}h_{stat}'
+                    
+                    if stat == 'mean':
+                        df[feature_name] = roll.mean().reset_index(0, drop=True)
+                    elif stat == 'std':
+                        df[feature_name] = roll.std().reset_index(0, drop=True)
+        
+        # Handle NaN values in std columns
+        std_columns = [col for col in df.columns if '_std' in col and 'rolling' in col]
+        df[std_columns] = df[std_columns].fillna(0)
+        
+        print("  Rolling features (16)")
+        return df
+    
+    def _create_lag_features(self, df):
+        """Creates 12 lag features (1h, 3h lags + 1h change for 4 sensors)"""
+        sensors = ['volt', 'rotate', 'pressure', 'vibration']
+        lag_hours = [1, 3]
+        
+        for sensor in sensors:
+            # Lag values
+            for lag in lag_hours:
+                feature_name = f'{sensor}_lag_{lag}h'
+                df[feature_name] = df.groupby('machineID')[sensor].shift(lag)
+            
+            # Rate of change
+            feature_name = f'{sensor}_change_1h'
+            df[feature_name] = df[sensor] - df.groupby('machineID')[sensor].shift(1)
+        
+        # Handle NaN values at start of each machine's time series
+        lag_columns = [col for col in df.columns if '_lag_' in col or '_change_' in col]
+        df[lag_columns] = df[lag_columns].fillna(0)
+        
+        print("   Lag features (12)")
+        return df
+    
+    def _create_event_features(self, df):
+        """Creates 7 event history features"""
+        
+        # Error count in last 24 hours
+        df['error_count_last_24_h'] = df.groupby('machineID')['has_error'].rolling(
+            window=24,
+            min_periods=1
+        ).sum().reset_index(0, drop=True)
+        
+        # Hours since last error
+        df['hours_since_last_error'] = np.nan
+        for machine_id in df['machineID'].unique():
+            mask = df['machineID'] == machine_id
+            machine_df = df[mask].copy()
+            error_indices = machine_df[machine_df['has_error'] == 1].index
+            
+            for i in machine_df.index:
+                prev_errors = error_indices[error_indices < i]
+                if len(prev_errors) > 0:
+                    last_error_index = prev_errors[-1]
+                    last_error_time = machine_df.loc[last_error_index, 'datetime']
+                    current_time = machine_df.loc[i, 'datetime']
+                    dif_hours = (current_time - last_error_time).total_seconds() / 3600
+                    df.loc[i, 'hours_since_last_error'] = dif_hours
+                else:
+                    df.loc[i, 'hours_since_last_error'] = 999
+        
+        # Hours since last maintenance
+        df['hours_since_last_maintenance'] = np.nan
+        for machine_id in df['machineID'].unique():
+            mask = df['machineID'] == machine_id
+            machine_df = df[mask].copy()
+            maint_indices = machine_df[machine_df['has_maintenance'] == 1].index
+            
+            for i in machine_df.index:
+                prev_maint = maint_indices[maint_indices < i]
+                if len(prev_maint) > 0:
+                    last_maint_index = prev_maint[-1]
+                    last_maint_time = machine_df.loc[last_maint_index, 'datetime']
+                    current_time = machine_df.loc[i, 'datetime']
+                    dif_hours = (current_time - last_maint_time).total_seconds() / 3600
+                    df.loc[i, 'hours_since_last_maintenance'] = dif_hours
+                else:
+                    df.loc[i, 'hours_since_last_maintenance'] = 999
+        
+        # Days since last failure
+        df['days_since_last_failure'] = np.nan
+        for machine_id in df['machineID'].unique():
+            mask = df['machineID'] == machine_id
+            machine_df = df[mask].copy()
+            failure_indices = machine_df[machine_df['has_failure'] == 1].index
+            
+            for i in machine_df.index:
+                prev_failures = failure_indices[failure_indices < i]
+                if len(prev_failures) > 0:
+                    last_failure_index = prev_failures[-1]
+                    last_failure_time = machine_df.loc[last_failure_index, 'datetime']
+                    current_time = machine_df.loc[i, 'datetime']
+                    dif_days = (current_time - last_failure_time).total_seconds() / (3600 * 24)
+                    df.loc[i, 'days_since_last_failure'] = dif_days
+                else:
+                    df.loc[i, 'days_since_last_failure'] = 999
+        
+        # Cumulative event counts
+        df['total_errors_to_date'] = df.groupby('machineID')['has_error'].cumsum()
+        df['total_maintenances_to_date'] = df.groupby('machineID')['has_maintenance'].cumsum()
+        df['total_failures_to_date'] = df.groupby('machineID')['has_failure'].cumsum()
+        
+        print("  ✓ Event features (7)")
+        return df
+    
+    def _create_machine_features(self, df):
+        """Creates 8 machine-specific features"""
+        
+        # One-hot encode machine models
+        dummies_model = pd.get_dummies(df['model'], drop_first=True)
+        df = pd.concat([df, dummies_model], axis=1)
+        
+        # Age squared
+        df['age_squared'] = df['age'] ** 2
+        
+        # Machine baseline deviations
+        sensors = ['volt', 'rotate', 'pressure', 'vibration']
+        for sensor in sensors:
+            machine_avg = df.groupby('machineID')[sensor].transform('mean')
+            feature_name = f'{sensor}_deviation_from_machine_avg'
+            df[feature_name] = df[sensor] - machine_avg
+        
+        print("   Machine features (8)")
+        return df
 
 feature_engineering_service = FeatureEngineeringService()
