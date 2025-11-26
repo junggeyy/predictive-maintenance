@@ -10,7 +10,7 @@ def run_simulation():
     """
     Run full pipeline simulation.
     """
-    df_test = data_loader.load_test_dataset(500)
+    df_test = data_loader.load_test_dataset()
     results = simulation_service.start_simulation(df_test)
 
     return {"results": results}

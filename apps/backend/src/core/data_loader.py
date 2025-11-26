@@ -16,7 +16,7 @@ class DataLoader:
             self.root_dir,
             "data",
             "production",
-            "test_dataset_split.csv"
+            "test_set.csv"
         )
 
     def load_test_dataset(self, subset_size: Optional[int] = None) -> pd.DataFrame:
