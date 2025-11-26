@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "predictive-maintenance": {
+      "command": "/Users/jungv/Desktop/predictive-analysis/mcp_venv/bin/python3",
+      "args": [
+        "/Users/jungv/Desktop/predictive-analysis/apps/mcp_server/server.py"
+      ]
+    }
+  }
+}
+

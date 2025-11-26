@@ -1,6 +1,7 @@
 from src.services.feature_engineering_service import feature_engineering_service
 from src.services.prediction_service import prediction_service
-from src.services.mcp_service import mcp_service
+from src.services.log_service import log_service
+from src.services.machine_state_service import set_machine_state
 import numpy as np
 import pandas as pd
 
@@ -70,22 +71,24 @@ class SimulationService:
             if fail_label == 1:
                 # regression with alert & work-order
                 rul = prediction_service.predict_rul(features)
-                mcp_service.create_alert(machine_id, fail_prob)
-                mcp_service.create_work_order(machine_id, rul)
+                log_service.create_alert(machine_id, fail_prob)
+                log_service.create_work_order(machine_id, rul)
             else:
                 rul = None
             
             result = {
                 "machineID": machine_id,
                 "timestamp": row["datetime"],
+                "features": features,
                 "prediciton": {
                     "failure_prob": fail_prob,
                     "failure_label": fail_label,
                     "rul": rul,
                 },
-                "mcp_events": mcp_service.get_logs()
+                "mcp_events": log_service.get_logs()
             }
             
+            set_machine_state(machine_id, result)
             simulation_results.append(result)
 
         return simulation_results

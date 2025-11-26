@@ -1,4 +1,4 @@
-class MCPService:
+class LogService:
     def __init__(self):
         self.logs = []
 
@@ -18,11 +18,11 @@ class MCPService:
     
     def log_event(self, message: str):
         """
-        Append to internal MCP log list.
+        Append to internal log list.
         """
         self.logs.append(message)
     
     def get_logs(self):
         return self.logs
     
-mcp_service = MCPService()
+log_service = LogService()

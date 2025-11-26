@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from apps.backend.src.services.machine_state_service import get_machine_state
+from src.services.machine_state_service import get_machine_state
 
 router = APIRouter(prefix="/mcp", tags=["MCP"])
 
@@ -10,4 +10,10 @@ def get_status(machine_id: int):
     if state is None:
         raise HTTPException(status_code=404, detail="Machine state not found. Run simulation first.")
 
-    return state
+    return {
+        "machineID": machine_id,
+        "timestamp": state.get("timestamp"),
+        "prediction": state.get("prediciton", {}),
+        "features": state.get("features", {}),
+        "mcp_events": state.get("mcp_events", [])
+    }
