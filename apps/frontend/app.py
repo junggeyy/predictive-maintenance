@@ -91,6 +91,7 @@ def render_custom_alert_card(message, timestamp, severity="critical"):
 def run_simulation():
     """Call backend simulation endpoint"""
     try:
+        # The spinner is already shown in start_simulation, so we just make the request
         response = requests.post(PREDICT_ENDPOINT, timeout=300)
         if response.status_code == 200:
             data = response.json()
@@ -98,6 +99,10 @@ def run_simulation():
         else:
             st.error(f"Backend returned error: {response.status_code}")
             return []
+    except requests.exceptions.Timeout:
+        st.error("Simulation timed out. The process is taking longer than expected.")
+        st.info("Try again or check if the backend is processing correctly.")
+        return []
     except requests.exceptions.RequestException as e:
         st.error(f"Failed to connect to backend: {str(e)}")
         st.info("Make sure the backend server is running on http://localhost:8000")
@@ -105,70 +110,91 @@ def run_simulation():
 
 def process_simulation_results(results: List[Dict]):
     """Process simulation results to extract alerts, work orders, stats, and queue"""
-    alerts = []
-    work_orders = []
+    # Use sets to track unique alerts and work orders by machine_id
+    alerts_dict = {}  # machine_id -> alert info
+    work_orders_dict = {}  # machine_id -> work order info
     failing_machines = []
-    machine_stats_dict = {}
     
+    # Track all machines for statistics
+    critical_count = 0
+    at_risk_count = 0
+    healthy_count = 0
+    
+    # Process each machine result
     for result in results:
         machine_id = result.get("machineID")
-        failure_prob = result.get("failure_prob", 0)
-        rul = result.get("rul")
+        prediction = result.get("prediciton", {})  # Note: backend has typo "prediciton"
+        failure_prob = prediction.get("failure_prob", 0)
+        failure_label = prediction.get("failure_label", 0)
+        rul = prediction.get("rul")
         timestamp = result.get("timestamp")
-        mcp_events = result.get("mcp_events", [])
         
-        # Add to failing machines queue
-        failing_machines.append({
-            "machineID": machine_id,
-            "failure_probability": f"{failure_prob:.2%}",
-            "rul_hours": f"{rul:.1f}" if rul else "N/A",
-            "timestamp": str(timestamp) if timestamp else "N/A",
-            "status": "Critical" if failure_prob > 0.7 else "Warning"
-        })
+        # Determine status based on RUL hours
+        # Critical: RUL < 10 hours
+        # At Risk: RUL between 10 to 24 hours (inclusive)
+        # Healthy: No failure predicted (failure_label == 0) or RUL > 24 hours (predicted to fail but not immediate)
         
-        # Process MCP events for alerts and work orders
-        alert_created = False
-        work_order_created = False
+        if failure_label == 0:
+            # Machine is not predicted to fail, so it's healthy
+            status = "Healthy"
+        elif failure_label == 1 and rul is not None:
+            # Machine is predicted to fail, categorize by RUL
+            if rul < 12:
+                status = "Critical"
+            elif 12 <= rul <= 24:
+                status = "At Risk"
+            else:
+                # RUL > 24 hours - still predicted to fail but beyond immediate risk window
+                # Count as "Healthy" in statistics since no immediate action needed
+                status = "Healthy"
+        else:
+            # Edge case: failure_label == 1 but no RUL (shouldn't happen, but handle it)
+            status = "At Risk"
         
-        for event in mcp_events:
-            if isinstance(event, dict):
-                event_type = event.get("type", "unknown")
-                if event_type == "alert":
-                    alerts.append({
-                        "machine_id": event.get("machine_id", machine_id),
-                        "probability": event.get("probability", failure_prob),
-                        "timestamp": timestamp
-                    })
-                    alert_created = True
-                elif event_type == "work_order":
-                    work_orders.append({
-                        "machine_id": event.get("machine_id", machine_id),
-                        "rul_hours": event.get("rul_hours", rul),
-                        "timestamp": timestamp
-                    })
-                    work_order_created = True
-        
-        # Create alerts from high-probability failures if not already created from MCP
-        if not alert_created and failure_prob > 0.5:
-            alerts.append({
-                "machine_id": machine_id,
-                "probability": failure_prob,
-                "timestamp": timestamp
+        # Only add to failing machines queue if machine is actually failing
+        if failure_label == 1:
+            # For queue display: machines with RUL > 24 should show as "Warning" 
+            # (they're still predicted to fail, just not immediate)
+            queue_status = status
+            if failure_label == 1 and rul is not None and rul > 24:
+                queue_status = "Warning"
+            
+            failing_machines.append({
+                "machineID": machine_id,
+                "failure_probability": f"{failure_prob:.2%}",
+                "rul_hours": f"{rul:.1f}" if rul else "N/A",
+                "timestamp": str(timestamp) if timestamp else "N/A",
+                "status": queue_status
             })
+            
+            # Only machines with failure_label == 1 have alerts and work orders
+            # Create alert for this failing machine (deduplicated by machine_id)
+            if machine_id not in alerts_dict:
+                alerts_dict[machine_id] = {
+                    "machine_id": machine_id,
+                    "probability": failure_prob,
+                    "timestamp": timestamp
+                }
+            
+            # Create work order only if machine has RUL (which it should if failing)
+            if rul is not None and machine_id not in work_orders_dict:
+                work_orders_dict[machine_id] = {
+                    "machine_id": machine_id,
+                    "rul_hours": rul,
+                    "timestamp": timestamp
+                }
         
-        # Create work orders for machines with RUL if not already created from MCP
-        if not work_order_created and rul is not None:
-            work_orders.append({
-                "machine_id": machine_id,
-                "rul_hours": rul,
-                "timestamp": timestamp
-            })
-        
-        # Update machine stats
-        if failure_prob > 0.7:
-            machine_stats_dict["critical"] = machine_stats_dict.get("critical", 0) + 1
-        elif failure_prob > 0.3:
-            machine_stats_dict["at_risk"] = machine_stats_dict.get("at_risk", 0) + 1
+        # Calculate machine statistics for ALL machines (100 total) based on RUL
+        if status == "Critical":
+            critical_count += 1
+        elif status == "At Risk":
+            at_risk_count += 1
+        else:  # Healthy
+            healthy_count += 1
+    
+    # Convert dictionaries to lists
+    alerts = list(alerts_dict.values())
+    work_orders = list(work_orders_dict.values())
     
     # Sort alerts by probability (highest first)
     alerts.sort(key=lambda x: x.get("probability", 0), reverse=True)
@@ -176,12 +202,7 @@ def process_simulation_results(results: List[Dict]):
     # Sort work orders by RUL (shortest first)
     work_orders.sort(key=lambda x: x.get("rul_hours", float('inf')) if isinstance(x.get("rul_hours"), (int, float)) else float('inf'))
     
-    # Calculate aggregate stats
-    total_failing = len(failing_machines)
-    critical_count = machine_stats_dict.get("critical", 0)
-    at_risk_count = machine_stats_dict.get("at_risk", 0)
-    healthy_count = max(0, 100 - total_failing)
-    
+    # Calculate aggregate stats (all 100 machines)
     stats = {
         "total_machines": 100,
         "healthy_machines": healthy_count,
@@ -194,15 +215,21 @@ def process_simulation_results(results: List[Dict]):
 def start_simulation():
     """Start the simulation and update all dashboard components"""
     st.session_state.simulation_running = True
-    results = run_simulation()
+    
+    # Show loading screen
+    with st.spinner("Running simulation... This may take a few moments."):
+        results = run_simulation()
     
     if results:
-        alerts, work_orders, stats, queue = process_simulation_results(results)
-        st.session_state.simulation_results = results
-        st.session_state.alerts = alerts
-        st.session_state.work_orders = work_orders
-        st.session_state.machine_stats = stats
-        st.session_state.failing_machines_queue = queue
+        # Process results with loading indicator
+        with st.spinner("Processing results and updating dashboard..."):
+            alerts, work_orders, stats, queue = process_simulation_results(results)
+            st.session_state.simulation_results = results
+            st.session_state.alerts = alerts
+            st.session_state.work_orders = work_orders
+            st.session_state.machine_stats = stats
+            st.session_state.failing_machines_queue = queue
+        
         st.session_state.simulation_running = False
         return True
     else:
@@ -215,8 +242,11 @@ def reload_rul():
     results = run_simulation()
     
     if results:
-        _, _, _, queue = process_simulation_results(results)
+        alerts, work_orders, stats, queue = process_simulation_results(results)
+        # Update only the queue and related data
         st.session_state.failing_machines_queue = queue
+        st.session_state.alerts = alerts
+        st.session_state.work_orders = work_orders
         return True
     return False
 
@@ -239,17 +269,19 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # Backend health check
-    backend_healthy = check_backend_health()
-    if backend_healthy:
-        st.success("Backend Connected")
-    else:
-        st.error("Backend Offline")
-        st.info("Ensure backend is running on http://localhost:8000")
+    # # Backend health check
+    # backend_healthy = check_backend_health()
+    # if backend_healthy:
+    #     st.success("Backend Connected")
+    # else:
+    #     st.error("Backend Offline")
+    #     st.info("Ensure backend is running on http://localhost:8000")
 
-    st.markdown("---")
+    # st.markdown("---")
 
-    st.caption("Start Simulation button allows you to run a full simulation of the system.")
+    st.caption("When Start Simulation button is clicked, we get sensor readings and event data (error, failure, and maintenance) for the past hour on all 100 machines.")
+    st.caption("We run a feature engineering pipeline on those data and pass them on for prediction. Our model classifies if the machine fails in the next 24 hours, and calculates RUL for the machines that are about to fail. ")
+    st.caption("Failure queue lists the information on the machines that are about to fail with their RUL, timestamp, failure probability, and status.")
 
 # -----------------------------------------------------------
 # Dashboard Page
@@ -271,8 +303,27 @@ if st.session_state.current_page == "Dashboard":
             else:
                 st.error("Simulation failed. Check backend connection.")
     
+    # Enhanced loading screen
     if st.session_state.simulation_running:
-        st.info("Simulation running... Please wait.")
+        # Show loading message with spinner
+        loading_placeholder = st.empty()
+        with loading_placeholder.container():
+            st.markdown("###Running Simulation")
+            st.markdown("Please wait while we process all machines...")
+            
+            # Progress steps
+            progress_col1, progress_col2, progress_col3 = st.columns(3)
+            with progress_col1:
+                st.markdown("**Loading Data**")
+                st.progress(0.33)
+            with progress_col2:
+                st.markdown("**Running Predictions**")
+                st.progress(0.66)
+            with progress_col3:
+                st.markdown("**Processing Results**")
+                st.progress(1.0)
+            
+            st.info("This process may take 30-60 seconds. Please do not close this page.")
     
     st.markdown("---")
     
@@ -334,7 +385,7 @@ if st.session_state.current_page == "Dashboard":
     st.markdown("---")
     
     # Main Content Area: Chart (Left) and Event Log (Right)
-    content_col1, content_col2 = st.columns([0.7, 0.3])
+    content_col1, content_col2 = st.columns([0.68, 0.32])
     
     # Machine Health Distribution Chart (Left)
     with content_col1:
@@ -390,8 +441,14 @@ if st.session_state.current_page == "Dashboard":
                     rul = work_order.get("rul_hours", "N/A")
                     timestamp = work_order.get("timestamp", "Just now")
                     
+                    # Format RUL display
+                    if isinstance(rul, (int, float)):
+                        rul_display = f"{rul:.1f} hours"
+                    else:
+                        rul_display = str(rul)
+                    
                     render_custom_alert_card(
-                        message=f"Work order for machine {machine_id} was created, RUL = {rul}",
+                        message=f"Work order for machine {machine_id} was created, RUL = {rul_display}",
                         timestamp=str(timestamp),
                         severity="info"
                     )
@@ -408,15 +465,47 @@ elif st.session_state.current_page == "Failure Queue":
     with header_col1:
         st.title("Machines About to Fail")
     
+    # with header_col2:
+    #     if st.button("Reload RUL", use_container_width=True, type="primary"):
+    #         if reload_rul():
+    #             st.success("RUL predictions updated!")
+    #             st.rerun()
+    #         else:
+    #             st.error("Failed to reload RUL. Check backend connection.")
+    
+    # st.markdown("---")
     with header_col2:
-        if st.button("Reload RUL", use_container_width=True, type="primary"):
-            if reload_rul():
-                st.success("RUL predictions updated!")
+        if st.button("Start Simulation", use_container_width=True, 
+                     disabled=st.session_state.simulation_running,
+                     type="primary"):
+            if start_simulation():
+                st.success("Simulation completed successfully!")
                 st.rerun()
             else:
-                st.error("Failed to reload RUL. Check backend connection.")
+                st.error("Simulation failed. Check backend connection.")
     
-    st.markdown("---")
+    # Enhanced loading screen
+    if st.session_state.simulation_running:
+        # Show loading message with spinner
+        loading_placeholder = st.empty()
+        with loading_placeholder.container():
+            st.markdown("### 🔄 Running Simulation")
+            st.markdown("Please wait while we process all machines...")
+            
+            # Progress steps
+            progress_col1, progress_col2, progress_col3 = st.columns(3)
+            with progress_col1:
+                st.markdown("**Loading Data**")
+                st.progress(0.33)
+            with progress_col2:
+                st.markdown("**Running Predictions**")
+                st.progress(0.66)
+            with progress_col3:
+                st.markdown("**Processing Results**")
+                st.progress(1.0)
+            
+            st.info("This process may take 30-60 seconds. Please do not close this page.")
+    
     
     # Machines About to Fail Table
     queue = st.session_state.failing_machines_queue
