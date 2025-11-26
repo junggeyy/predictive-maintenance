@@ -76,7 +76,7 @@ def render_custom_alert_card(message, timestamp, severity="critical"):
         padding: 2px;
         border-radius: 4px;
         margin-bottom: 3px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Subtle shadow */
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     ">
         <div style="color: #333; font-weight: 500; font-size: 14px;">
             {message}
@@ -91,7 +91,6 @@ def render_custom_alert_card(message, timestamp, severity="critical"):
 def run_simulation():
     """Call backend simulation endpoint"""
     try:
-        # The spinner is already shown in start_simulation, so we just make the request
         response = requests.post(PREDICT_ENDPOINT, timeout=300)
         if response.status_code == 200:
             data = response.json()
@@ -123,29 +122,25 @@ def process_simulation_results(results: List[Dict]):
     # Process each machine result
     for result in results:
         machine_id = result.get("machineID")
-        prediction = result.get("prediciton", {})  # Note: backend has typo "prediciton"
+        prediction = result.get("prediction", {}) 
         failure_prob = prediction.get("failure_prob", 0)
         failure_label = prediction.get("failure_label", 0)
         rul = prediction.get("rul")
         timestamp = result.get("timestamp")
         
         # Determine status based on RUL hours
-        # Critical: RUL < 10 hours
-        # At Risk: RUL between 10 to 24 hours (inclusive)
-        # Healthy: No failure predicted (failure_label == 0) or RUL > 24 hours (predicted to fail but not immediate)
+        # Critical: RUL <= 12 hours
+        # At Risk: RUL between 12 to 24 hours 
+        # Healthy: No failure predicted (failure_label == 0) or RUL > 24 hours 
         
         if failure_label == 0:
-            # Machine is not predicted to fail, so it's healthy
             status = "Healthy"
         elif failure_label == 1 and rul is not None:
-            # Machine is predicted to fail, categorize by RUL
-            if rul < 12:
+            if rul <= 12:
                 status = "Critical"
-            elif 12 <= rul <= 24:
+            elif 12 < rul <= 24:
                 status = "At Risk"
             else:
-                # RUL > 24 hours - still predicted to fail but beyond immediate risk window
-                # Count as "Healthy" in statistics since no immediate action needed
                 status = "Healthy"
         else:
             # Edge case: failure_label == 1 but no RUL (shouldn't happen, but handle it)
@@ -153,8 +148,6 @@ def process_simulation_results(results: List[Dict]):
         
         # Only add to failing machines queue if machine is actually failing
         if failure_label == 1:
-            # For queue display: machines with RUL > 24 should show as "Warning" 
-            # (they're still predicted to fail, just not immediate)
             queue_status = status
             if failure_label == 1 and rul is not None and rul > 24:
                 queue_status = "Warning"
@@ -168,7 +161,6 @@ def process_simulation_results(results: List[Dict]):
             })
             
             # Only machines with failure_label == 1 have alerts and work orders
-            # Create alert for this failing machine (deduplicated by machine_id)
             if machine_id not in alerts_dict:
                 alerts_dict[machine_id] = {
                     "machine_id": machine_id,
@@ -176,7 +168,6 @@ def process_simulation_results(results: List[Dict]):
                     "timestamp": timestamp
                 }
             
-            # Create work order only if machine has RUL (which it should if failing)
             if rul is not None and machine_id not in work_orders_dict:
                 work_orders_dict[machine_id] = {
                     "machine_id": machine_id,
@@ -189,7 +180,7 @@ def process_simulation_results(results: List[Dict]):
             critical_count += 1
         elif status == "At Risk":
             at_risk_count += 1
-        else:  # Healthy
+        else:
             healthy_count += 1
     
     # Convert dictionaries to lists
@@ -236,20 +227,6 @@ def start_simulation():
         st.session_state.simulation_running = False
         return False
 
-def reload_rul():
-    """Reload RUL predictions for machines in the failure queue"""
-    # Re-run simulation to get updated RUL values
-    results = run_simulation()
-    
-    if results:
-        alerts, work_orders, stats, queue = process_simulation_results(results)
-        # Update only the queue and related data
-        st.session_state.failing_machines_queue = queue
-        st.session_state.alerts = alerts
-        st.session_state.work_orders = work_orders
-        return True
-    return False
-
 # -----------------------------------------------------------
 # Sidebar - Control Panel (Collapsible)
 # -----------------------------------------------------------
@@ -268,16 +245,6 @@ with st.sidebar:
         st.rerun()
     
     st.markdown("---")
-    
-    # # Backend health check
-    # backend_healthy = check_backend_health()
-    # if backend_healthy:
-    #     st.success("Backend Connected")
-    # else:
-    #     st.error("Backend Offline")
-    #     st.info("Ensure backend is running on http://localhost:8000")
-
-    # st.markdown("---")
 
     st.caption("When Start Simulation button is clicked, we get sensor readings and event data (error, failure, and maintenance) for the past hour on all 100 machines.")
     st.caption("We run a feature engineering pipeline on those data and pass them on for prediction. Our model classifies if the machine fails in the next 24 hours, and calculates RUL for the machines that are about to fail. ")
@@ -427,7 +394,6 @@ if st.session_state.current_page == "Dashboard":
             else:
                 st.caption("No alerts at this time.")
 
-        # Spacer
         st.write("")
 
         # --- Work Orders Section ---
@@ -465,15 +431,6 @@ elif st.session_state.current_page == "Failure Queue":
     with header_col1:
         st.title("Machines About to Fail")
     
-    # with header_col2:
-    #     if st.button("Reload RUL", use_container_width=True, type="primary"):
-    #         if reload_rul():
-    #             st.success("RUL predictions updated!")
-    #             st.rerun()
-    #         else:
-    #             st.error("Failed to reload RUL. Check backend connection.")
-    
-    # st.markdown("---")
     with header_col2:
         if st.button("Start Simulation", use_container_width=True, 
                      disabled=st.session_state.simulation_running,
@@ -489,7 +446,7 @@ elif st.session_state.current_page == "Failure Queue":
         # Show loading message with spinner
         loading_placeholder = st.empty()
         with loading_placeholder.container():
-            st.markdown("### 🔄 Running Simulation")
+            st.markdown("###Running Simulation")
             st.markdown("Please wait while we process all machines...")
             
             # Progress steps
@@ -505,7 +462,6 @@ elif st.session_state.current_page == "Failure Queue":
                 st.progress(1.0)
             
             st.info("This process may take 30-60 seconds. Please do not close this page.")
-    
     
     # Machines About to Fail Table
     queue = st.session_state.failing_machines_queue
@@ -553,8 +509,3 @@ elif st.session_state.current_page == "Failure Queue":
         st.info("No machines currently predicted to fail. The system is healthy!")
         st.caption("Run a simulation from the Dashboard to populate the failure queue.")
 
-# # -----------------------------------------------------------
-# # Footer
-# # -----------------------------------------------------------
-# st.markdown("---")
-# st.caption("Predictive Maintenance Dashboard | Backend: http://localhost:8000")

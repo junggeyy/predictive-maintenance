@@ -13,7 +13,7 @@ def get_status(machine_id: int):
     return {
         "machineID": machine_id,
         "timestamp": state.get("timestamp"),
-        "prediction": state.get("prediciton", {}),
+        "prediction": state.get("prediction", {}),
         "features": state.get("features", {}),
         "mcp_events": state.get("mcp_events", [])
     }
