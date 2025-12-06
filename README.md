@@ -1,6 +1,6 @@
 # Predictive Maintenance Analysis System with MCP Integration
 
-A scalable, end-to-end predictive maintenance framework designed to simulate real-world industrial machine monitoring.
+A scalable, end-to-end machinery predictive maintenance framework designed to simulate real-world industrial machine monitoring.
 
 ## About
 
@@ -63,9 +63,9 @@ Predict: Failure in next 24 hours?
 ## UI 
 
 <div align="center">
-  <img src="demo/dashboard.png" alt="Dashboard" width="100" height="50">
-   <img src="demo/rul_queue.png" alt="RUL Queue" width="100" height="50">
-   <img src="demo/claude.png" alt="MCP usage by Claude" width="100" height="50">
+  <img src="demo/dashboard.png" alt="Dashboard" width="300" height="150">
+   <img src="demo/rul_queue.png" alt="RUL Queue" width="300" height="200">
+   <img src="demo/claude.png" alt="MCP usage by Claude" width="300" height="150">
 </div>
 
 ## Contributors
