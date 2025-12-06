@@ -16,18 +16,18 @@ def run_simulation():
     return {"results": results}
 
 @router.post("/classification")
-def compute_classification_prediction(sensor_data):
+def compute_classification_prediction(features: dict):
     """
-    Returns classification prediction based on sensor data.
+    Returns classification prediction.
     """
-    return prediction_service.classification_prediction(sensor_data)
+    return prediction_service.predict_failure(features)
 
 @router.post("/regression")
-def compute_regression_prediction(sensor_data):
+def compute_regression_prediction(features: dict):
     """
-    Returns regression prediction (RUL) based on sensor data.
+    Returns regression prediction (RUL).
     """
-    pass
+    return prediction_service.predict_rul(features)
 
 
 

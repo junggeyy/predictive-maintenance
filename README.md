@@ -6,7 +6,7 @@ A scalable, end-to-end predictive maintenance framework designed to simulate rea
 
 This project implements a predictive maintenance analysis system using Microsoft Azure's maintenance dataset. It includes notebooks for data preparation, feature engineering, and training two Random Forest models: a classifier for 24-hour failure prediction and a regressor for Remaining Useful Life (RUL) estimation.
 
-The models are then used to power a production-style simulation monitoring 100 machines with hourly sensor updates. Results are visualized through a Streamlit dashboard, while an MCP server is also exposed to enable LLMs to query the machine states so users can receive natural-language diagnostics— creating a complete pipeline from raw data handling to LLM-assisted interpretation.
+The models are then used to power a production-style simulation monitoring 100 machines with hourly sensor updates. Results are visualized through a Streamlit dashboard, while an MCP server is also exposed to enable LLMs to query the machine states so users can receive natural-language diagnostics— creating a complete pipeline from raw data handling to LLM-assisted interpretation, demonstrating how this framework can be used in an actual industrial environment.
 
 
 ## System Architecture
@@ -59,6 +59,14 @@ Predict: Failure in next 24 hours?
 ## Tech Stack
 - **ML:** Random Forest models, pandas, numpy, scikit-learn
 - **Backend and UI:** FastAPI, Python, Streamlit
+
+## UI 
+
+<div align="center">
+  <img src="demo/dashboard.png" alt="Dashboard" width="100" height="50">
+   <img src="demo/rul_queue.png" alt="RUL Queue" width="100" height="50">
+   <img src="demo/claude.png" alt="MCP usage by Claude" width="100" height="50">
+</div>
 
 ## Contributors
 

@@ -1,9 +1,7 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import requests
-from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 # -----------------------------------------------------------
 # Configuration
@@ -121,7 +119,7 @@ def process_simulation_results(results: List[Dict]):
     # Process each machine result
     for result in results:
         machine_id = result.get("machineID")
-        prediction = result.get("prediciton", {})  # Note: backend has typo "prediciton"
+        prediction = result.get("prediction", {})
         failure_prob = prediction.get("failure_prob", 0)
         failure_label = prediction.get("failure_label", 0)
         rul = prediction.get("rul")
@@ -137,7 +135,6 @@ def process_simulation_results(results: List[Dict]):
             else:
                 status = "Healthy"
         else:
-            # Edge case: failure_label == 1 but no RUL (shouldn't happen, but handle it)
             status = "At Risk"
         
         # Only add to failing machines queue if machine is actually failing

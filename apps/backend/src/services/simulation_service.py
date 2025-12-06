@@ -80,7 +80,7 @@ class SimulationService:
                 "machineID": machine_id,
                 "timestamp": row["datetime"],
                 "features": features,
-                "prediciton": {
+                "prediction": {
                     "failure_prob": fail_prob,
                     "failure_label": fail_label,
                     "rul": rul,
