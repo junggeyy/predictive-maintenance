@@ -63,9 +63,9 @@ Predict: Failure in next 24 hours?
 ## UI 
 
 <div align="center">
-  <img src="demo/dashboard.png" alt="Dashboard" width="300" height="150">
-   <img src="demo/rul_queue.png" alt="RUL Queue" width="300" height="200">
-   <img src="demo/claude.png" alt="MCP usage by Claude" width="300" height="150">
+  <img src="demo/dashboard.png" alt="Dashboard" width="32%">
+   <img src="demo/rul_queue.png" alt="RUL Queue" width="32%">
+   <img src="demo/claude.png" alt="MCP usage by Claude" width="32%" height="150px">
 </div>
 
 ## Contributors
